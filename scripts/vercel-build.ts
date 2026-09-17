@@ -27,5 +27,18 @@ function run(command: string) {
   execSync(command, { stdio: "inherit", env: process.env });
 }
 
+// "prisma migrate deploy" precisa de um advisory lock do Postgres que nao
+// funciona de forma confiavel atraves do pooler (pgbouncer) do Neon, entao
+// usamos aqui uma connection string direta / nao-pooled para as migrations.
+if (!process.env.DIRECT_DATABASE_URL) {
+  const direct =
+    process.env.STORAGE_DATABASE_POSTGRES_URL_NON_POOLING ||
+    process.env.STORAGE_DATABASE_DATABASE_URL_UNPOOLED ||
+    process.env.DATABASE_URL;
+  if (direct) {
+    process.env.DIRECT_DATABASE_URL = direct;
+  }
+}
+
 run("npx prisma migrate deploy");
 run("npx next build");
