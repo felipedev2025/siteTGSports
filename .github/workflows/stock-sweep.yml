@@ -1,0 +1,23 @@
+name: Varredura de reservas de estoque expiradas
+
+# Recomendado para quem hospeda na Vercel no plano Hobby (que só permite cron
+# 1x/dia) ou em qualquer outro host: roda a cada 15 minutos, independente do
+# plano de hospedagem, liberando estoque reservado por checkouts abandonados.
+#
+# Configure em Settings > Secrets and variables > Actions deste repositório:
+#   APP_URL      → URL pública da loja (ex: https://tgsports.com.br)
+#   CRON_SECRET  → o mesmo valor definido na variável de ambiente CRON_SECRET
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar /api/cron/sweep
+        run: |
+          curl --fail -sS -X POST "${{ secrets.APP_URL }}/api/cron/sweep" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}"

@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #0b1220;
+
+  /* Identidade TG Sports */
+  --tg-navy-950: #050b18;
+  --tg-navy-900: #0a1630;
+  --tg-navy-800: #0f2145;
+  --tg-navy-700: #16305f;
+  --tg-navy-600: #1d3f7a;
+  --tg-blue-600: #1458e6;
+  --tg-blue-500: #2f6bff;
+  --tg-blue-400: #5c8bff;
+  --tg-blue-100: #e7effe;
+  --tg-blue-50: #f2f6ff;
+  --tg-gray-50: #f7f8fa;
+  --tg-gray-100: #eef0f4;
+  --tg-gray-200: #e2e5ec;
+  --tg-gray-400: #96a0b5;
+  --tg-gray-600: #5b6579;
+  --tg-gray-800: #232a3b;
+  --tg-red-600: #e0293e;
+  --tg-green-600: #12875a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --color-navy-950: var(--tg-navy-950);
+  --color-navy-900: var(--tg-navy-900);
+  --color-navy-800: var(--tg-navy-800);
+  --color-navy-700: var(--tg-navy-700);
+  --color-navy-600: var(--tg-navy-600);
+  --color-blue-600: var(--tg-blue-600);
+  --color-blue-500: var(--tg-blue-500);
+  --color-blue-400: var(--tg-blue-400);
+  --color-blue-100: var(--tg-blue-100);
+  --color-blue-50: var(--tg-blue-50);
+  --color-tggray-50: var(--tg-gray-50);
+  --color-tggray-100: var(--tg-gray-100);
+  --color-tggray-200: var(--tg-gray-200);
+  --color-tggray-400: var(--tg-gray-400);
+  --color-tggray-600: var(--tg-gray-600);
+  --color-tggray-800: var(--tg-gray-800);
+  --color-red-600: var(--tg-red-600);
+  --color-green-600: var(--tg-green-600);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+::selection {
+  background: var(--tg-blue-500);
+  color: white;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.35s ease-out both;
+}
