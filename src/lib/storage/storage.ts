@@ -8,62 +8,73 @@ import sharp from "sharp";
 
 // -----------------------------------------------------------------------------
 // Abstração de armazenamento de arquivos.
-// Hoje: disco local (fora de /public), servido via /api/media/[...path].
-// Amanhã: trocar `LocalStorageDriver` por um driver S3/R2/CDN implementando
-// a mesma interface `StorageDriver`, sem tocar no resto da aplicação.
+//
+// - Local (padrão em desenvolvimento e em qualquer host com disco persistente):
+//   grava em `storage/uploads/`, servido via `/api/media/[...path]`.
+// - Vercel Blob (selecionado automaticamente quando `BLOB_READ_WRITE_TOKEN`
+//   está definido — é o que a Vercel injeta ao conectar um Blob Store ao
+//   projeto): necessário porque o filesystem das Serverless/Edge Functions da
+//   Vercel é efêmero e não compartilhado entre instâncias, então gravar em
+//   disco lá não persiste os uploads.
+//
+// Qualquer novo driver (S3, R2, etc.) só precisa implementar `StorageDriver`
+// — nada mais na aplicação depende da implementação concreta.
 // -----------------------------------------------------------------------------
 
 export interface StoredFile {
-  /** caminho relativo dentro do storage, usado para montar a URL pública */
+  /** identificador interno do arquivo dentro do driver (usado para exclusão) */
   path: string;
-  /** URL pública (servida pela própria aplicação) */
+  /** URL pública da imagem */
   url: string;
 }
 
 export interface StorageDriver {
   saveImage(buffer: Buffer, originalName: string, folder: string): Promise<{ main: StoredFile; thumb: StoredFile }>;
-  delete(relativePath: string): Promise<void>;
+  /** Recebe a URL previamente retornada por `saveImage` (armazenada no banco). */
+  delete(url: string): Promise<void>;
 }
+
+const MAX_IMAGE_DIMENSION = 1920;
+const THUMB_WIDTH = 480;
+
+async function resizeForWeb(buffer: Buffer): Promise<{ main: Buffer; thumb: Buffer }> {
+  // Sempre recodificamos para WebP (remove metadados, normaliza formato,
+  // reduz peso — Core Web Vitals) e limitamos a dimensão máxima.
+  const main = await sharp(buffer)
+    .rotate()
+    .resize({ width: MAX_IMAGE_DIMENSION, height: MAX_IMAGE_DIMENSION, fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 82 })
+    .toBuffer();
+
+  const thumb = await sharp(buffer)
+    .rotate()
+    .resize({ width: THUMB_WIDTH, fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 75 })
+    .toBuffer();
+
+  return { main, thumb };
+}
+
+// ---------------------------------------------------------------------------
+// Driver local (disco)
+// ---------------------------------------------------------------------------
 
 const STORAGE_ROOT = process.env.STORAGE_DIR
   ? path.resolve(process.env.STORAGE_DIR)
   : path.join(process.cwd(), "storage", "uploads");
 
-const MAX_IMAGE_DIMENSION = 1920;
-const THUMB_WIDTH = 480;
-
-function safeExtension(originalName: string): string {
-  const ext = path.extname(originalName).toLowerCase().replace(".", "");
-  const allowed = ["jpg", "jpeg", "png", "webp"];
-  return allowed.includes(ext) ? ext : "jpg";
-}
-
 class LocalStorageDriver implements StorageDriver {
-  async saveImage(buffer: Buffer, originalName: string, folder: string) {
-    void safeExtension(originalName); // valida extensão original apenas por sanidade
+  async saveImage(buffer: Buffer, _originalName: string, folder: string) {
     const id = randomUUID();
     const dir = path.join(STORAGE_ROOT, folder);
     await mkdir(dir, { recursive: true });
 
-    // Sempre recodificamos para WebP (remove metadados, normaliza formato,
-    // reduz peso — Core Web Vitals) e limitamos a dimensão máxima.
-    const mainBuffer = await sharp(buffer)
-      .rotate()
-      .resize({ width: MAX_IMAGE_DIMENSION, height: MAX_IMAGE_DIMENSION, fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 82 })
-      .toBuffer();
-
-    const thumbBuffer = await sharp(buffer)
-      .rotate()
-      .resize({ width: THUMB_WIDTH, fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 75 })
-      .toBuffer();
+    const { main, thumb } = await resizeForWeb(buffer);
 
     const mainName = `${id}.webp`;
     const thumbName = `${id}_thumb.webp`;
-
-    await writeFile(path.join(dir, mainName), mainBuffer);
-    await writeFile(path.join(dir, thumbName), thumbBuffer);
+    await writeFile(path.join(dir, mainName), main);
+    await writeFile(path.join(dir, thumbName), thumb);
 
     const mainPath = `${folder}/${mainName}`;
     const thumbPath = `${folder}/${thumbName}`;
@@ -74,7 +85,8 @@ class LocalStorageDriver implements StorageDriver {
     };
   }
 
-  async delete(relativePath: string) {
+  async delete(url: string) {
+    const relativePath = url.replace(/^\/api\/media\//, "");
     try {
       await unlink(path.join(STORAGE_ROOT, relativePath));
     } catch {
@@ -83,7 +95,41 @@ class LocalStorageDriver implements StorageDriver {
   }
 }
 
-export const storage: StorageDriver = new LocalStorageDriver();
+// ---------------------------------------------------------------------------
+// Driver Vercel Blob — necessário ao hospedar na Vercel (filesystem efêmero)
+// ---------------------------------------------------------------------------
+
+class VercelBlobStorageDriver implements StorageDriver {
+  async saveImage(buffer: Buffer, _originalName: string, folder: string) {
+    const { put } = await import("@vercel/blob");
+    const id = randomUUID();
+    const { main, thumb } = await resizeForWeb(buffer);
+
+    const [mainBlob, thumbBlob] = await Promise.all([
+      put(`${folder}/${id}.webp`, main, { access: "public", contentType: "image/webp" }),
+      put(`${folder}/${id}_thumb.webp`, thumb, { access: "public", contentType: "image/webp" }),
+    ]);
+
+    return {
+      main: { path: mainBlob.pathname, url: mainBlob.url },
+      thumb: { path: thumbBlob.pathname, url: thumbBlob.url },
+    };
+  }
+
+  async delete(url: string) {
+    try {
+      const { del } = await import("@vercel/blob");
+      await del(url);
+    } catch {
+      // já pode não existir — não é um erro fatal
+    }
+  }
+}
+
+export const storage: StorageDriver = process.env.BLOB_READ_WRITE_TOKEN
+  ? new VercelBlobStorageDriver()
+  : new LocalStorageDriver();
+
 export { STORAGE_ROOT };
 
 export const ALLOWED_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];

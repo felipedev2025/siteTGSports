@@ -200,22 +200,83 @@ duplicados (reentrega "at-least-once") são reconhecidos e **não reprocessados*
 
 ## 6. Cron de expiração de reservas
 
-O endpoint `POST /api/cron/sweep` (header `x-cron-secret: <CRON_SECRET>`) expira reservas de estoque vencidas e
-cancela pedidos que ficaram mais de 65 minutos aguardando pagamento. Agende-o a cada 5–15 minutos usando:
+O endpoint `/api/cron/sweep` expira reservas de estoque vencidas e cancela pedidos que ficaram mais de 65 minutos
+aguardando pagamento. Aceita duas formas de autenticação (mesmo `CRON_SECRET`):
 
-- Vercel Cron (`vercel.json`)
-- GitHub Actions com `schedule`
-- cron-job.org ou qualquer scheduler externo
+- `GET` com header `Authorization: Bearer <CRON_SECRET>` — é assim que o **Vercel Cron** chama automaticamente
+- `POST` com header `x-cron-secret: <CRON_SECRET>` — para GitHub Actions, cron-job.org, ou qualquer chamada manual
 
-Exemplo de chamada:
+Exemplo de chamada manual:
 
 ```bash
 curl -X POST https://SEU-DOMINIO.com.br/api/cron/sweep -H "x-cron-secret: SEU_CRON_SECRET"
 ```
 
+Já incluído no repositório:
+
+- `vercel.json` — agenda uma varredura diária via Vercel Cron (funciona em qualquer plano, inclusive Hobby)
+- `.github/workflows/stock-sweep.yml` — roda a cada 15 minutos via GitHub Actions (recomendado, independe do plano de
+  hospedagem); configure os secrets `APP_URL` e `CRON_SECRET` no repositório do GitHub
+
+Como a reserva de estoque expira em 60 minutos, uma varredura só 1x/dia (Hobby, sem GitHub Actions) ainda é segura —
+o pior caso é o estoque de um checkout abandonado ficar "preso" por até ~1 dia antes de ser liberado, nunca vendido
+a mais. Para liberar mais rápido, use o workflow do GitHub Actions ou o plano Pro da Vercel (cron por minuto).
+
 ---
 
-## 7. Cadastrando o catálogo real
+## 7. Deploy na Vercel
+
+A aplicação (Next.js 16) é compatível com a Vercel nativamente. Dois pontos exigem atenção antes do primeiro deploy:
+
+### 7.1 Banco de dados
+
+A Vercel não inclui um PostgreSQL por padrão — conecte um serviço gerenciado, por exemplo:
+
+- **Vercel Postgres** (via Marketplace, usa Neon por trás) — mais simples, já integra a env var automaticamente
+- Neon, Supabase, Railway ou RDS — funcionam normalmente, basta configurar `DATABASE_URL`
+
+Depois de configurado, rode as migrations contra o banco de produção (uma vez, antes do primeiro deploy, ou como
+parte do pipeline):
+
+```bash
+DATABASE_URL="<url-de-produção>" npx prisma migrate deploy
+```
+
+> Dica: em **Project Settings > Build & Development Settings**, você pode sobrescrever o *Build Command* para
+> `npx prisma migrate deploy && next build`, aplicando as migrations pendentes a cada deploy automaticamente.
+
+### 7.2 Armazenamento de imagens (importante)
+
+As Serverless/Edge Functions da Vercel têm **filesystem efêmero e não compartilhado** entre instâncias — gravar
+uploads em disco local (o comportamento padrão deste projeto, pensado para hosts com disco persistente) **não
+funciona na Vercel**: as fotos enviadas pelo painel desapareceriam.
+
+Por isso, o driver de armazenamento (`src/lib/storage/storage.ts`) já detecta automaticamente o ambiente Vercel e
+troca para o **Vercel Blob**:
+
+1. No dashboard da Vercel, vá em **Storage > Create Database > Blob** e conecte ao projeto
+2. A Vercel injeta automaticamente a env var `BLOB_READ_WRITE_TOKEN` — é só isso; nenhuma mudança de código é
+   necessária, o driver já muda sozinho quando essa variável existe
+3. Se preferir outro provedor (S3, Cloudflare R2, etc.), implemente a interface `StorageDriver` do mesmo arquivo
+
+### 7.3 Variáveis de ambiente
+
+Configure em **Project Settings > Environment Variables** as mesmas variáveis do `.env.example`: `AUTH_SECRET`,
+`NEXT_PUBLIC_APP_URL` (o domínio de produção), `CRON_SECRET`, `ASAAS_API_KEY`, `ASAAS_ENV`, `ASAAS_WEBHOOK_TOKEN`
+(e `DATABASE_URL`, se não vier automaticamente da integração do banco).
+
+### 7.4 Depois do primeiro deploy
+
+1. Rode `npm run create-admin -- ...` apontando `DATABASE_URL` para o banco de produção
+2. Cadastre o Webhook do Asaas com a URL `https://SEU-DOMINIO.vercel.app/api/webhooks/asaas` (seção 5.3)
+3. Configure o workflow do GitHub Actions (`.github/workflows/stock-sweep.yml`) para varreduras mais frequentes que
+   o cron diário padrão da Vercel
+
+O `proxy.ts` (equivalente ao antigo middleware) roda em runtime Node.js — totalmente suportado pela Vercel.
+
+---
+
+## 8. Cadastrando o catálogo real
 
 1. Entre em `/admin/login`
 2. **Marcas** → cadastre as marcas que a TG Sports está autorizada a vender (nome + logo opcional)
@@ -233,20 +294,22 @@ Nenhuma etapa acima exige alteração de código.
 
 ---
 
-## 8. Como subir fotos
+## 9. Como subir fotos
 
 As imagens são enviadas na tela de edição do produto (seção **Fotos do produto**), do banner (**Banners**) e da
 marca (**Marcas**). Formatos aceitos: JPG, PNG, WebP — até 8MB por arquivo. Toda imagem é reprocessada para WebP
 (qualidade otimizada) e uma miniatura é gerada automaticamente, para performance no catálogo (Core Web Vitals).
 
-Os arquivos ficam em `storage/uploads/` (fora de `/public`, fora do controle de versão) e são servidos pela própria
-aplicação em `/api/media/...`. Para produção com múltiplas instâncias, configure `STORAGE_DIR` para um volume
-persistente compartilhado, ou substitua `src/lib/storage/storage.ts` por um driver S3/R2 compatível — a interface
-`StorageDriver` foi desenhada para isso sem exigir mudanças no resto da aplicação.
+Em um host com disco persistente, os arquivos ficam em `storage/uploads/` (fora de `/public`, fora do controle de
+versão) e são servidos pela própria aplicação em `/api/media/...` — para múltiplas instâncias, configure
+`STORAGE_DIR` para um volume compartilhado. Na **Vercel** (filesystem efêmero), o driver troca automaticamente para
+o **Vercel Blob** assim que a env var `BLOB_READ_WRITE_TOKEN` existir (ver seção 7.2) — nenhuma mudança de código é
+necessária. Para outro provedor (S3, Cloudflare R2, etc.), implemente a interface `StorageDriver` em
+`src/lib/storage/storage.ts`.
 
 ---
 
-## 9. Colocando em produção (checklist rápido)
+## 10. Colocando em produção (checklist rápido)
 
 1. Provisione um PostgreSQL gerenciado (ou equivalente) e configure `DATABASE_URL`
 2. Configure um volume persistente para `storage/uploads` (ou migre para S3/R2)
@@ -259,7 +322,7 @@ persistente compartilhado, ou substitua `src/lib/storage/storage.ts` por um driv
 
 ---
 
-## 10. Testes
+## 11. Testes
 
 ```bash
 npm test
@@ -280,7 +343,7 @@ garantia de que um pedido já pago nunca é revertido por um evento tardio).
 
 ---
 
-## 11. Segurança — decisões importantes
+## 12. Segurança — decisões importantes
 
 - Preço, desconto, frete e status de pagamento **nunca** são aceitos do navegador — o backend recalcula tudo a
   partir do banco a cada requisição de carrinho/checkout
@@ -302,7 +365,7 @@ garantia de que um pedido já pago nunca é revertido por um evento tardio).
 
 ---
 
-## 12. Checklist do que foi implementado
+## 13. Checklist do que foi implementado
 
 - [x] Loja pública completa (home, catálogo com filtros/ordenação/busca, página de produto com galeria e zoom,
       variações por numeração com estoque independente, tabela de medidas, política de troca/entrega)
@@ -325,7 +388,7 @@ garantia de que um pedido já pago nunca é revertido por um evento tardio).
 - [x] Testes automatizados das regras de negócio críticas (carrinho, cupom, estoque, reserva, webhook)
 - [x] Seed de demonstração claramente identificado `[DEMO]`
 
-## 13. O que ainda depende de credenciais/dados reais da TG Sports
+## 14. O que ainda depende de credenciais/dados reais da TG Sports
 
 - [ ] **Credenciais Asaas de produção** (API Key + Webhook) — hoje configurado apenas para Sandbox
 - [ ] **Catálogo real**: produtos, preços, fotos, marcas autorizadas — o seed é 100% fictício

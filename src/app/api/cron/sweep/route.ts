@@ -4,18 +4,20 @@ import { sweepExpiredReservations, releaseStockForOrder } from "@/lib/inventory"
 
 export const dynamic = "force-dynamic";
 
-/**
- * Endpoint chamado periodicamente (cron externo — Vercel Cron, GitHub Actions,
- * cron-job.org, etc.) para: 1) expirar reservas de estoque vencidas e
- * 2) cancelar pedidos que ficaram AGUARDANDO_PAGAMENTO além do prazo da
- * reserva, liberando o estoque. Protegido por um secret compartilhado.
- */
-export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret");
-  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+function isAuthorized(req: NextRequest): boolean {
+  if (!process.env.CRON_SECRET) return false;
 
+  // Vercel Cron Jobs chamam via GET e injetam automaticamente
+  // `Authorization: Bearer <CRON_SECRET>` (usando a env var CRON_SECRET do projeto).
+  const authHeader = req.headers.get("authorization");
+  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) return true;
+
+  // Chamada manual/externa (GitHub Actions, cron-job.org, curl, etc.).
+  const legacyHeader = req.headers.get("x-cron-secret");
+  return legacyHeader === process.env.CRON_SECRET;
+}
+
+async function runSweep() {
   const expiredReservations = await sweepExpiredReservations();
 
   const staleOrders = await prisma.order.findMany({
@@ -37,8 +39,22 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({
-    expiredReservations,
-    canceledOrders: staleOrders.length,
-  });
+  return { expiredReservations, canceledOrders: staleOrders.length };
+}
+
+/**
+ * Endpoint chamado periodicamente (Vercel Cron, GitHub Actions, cron-job.org,
+ * etc.) para: 1) expirar reservas de estoque vencidas e 2) cancelar pedidos
+ * que ficaram AGUARDANDO_PAGAMENTO além do prazo da reserva, liberando o
+ * estoque. Aceita GET (Vercel Cron) e POST (chamada manual/externa) — ambos
+ * exigem autenticação por CRON_SECRET.
+ */
+export async function GET(req: NextRequest) {
+  if (!isAuthorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  return NextResponse.json(await runSweep());
+}
+
+export async function POST(req: NextRequest) {
+  if (!isAuthorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  return NextResponse.json(await runSweep());
 }

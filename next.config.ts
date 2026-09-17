@@ -2,10 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    // Imagens de produto são servidas pela própria aplicação via /api/media,
-    // então não é necessário remotePatterns em desenvolvimento. Ao migrar
-    // para um storage externo/CDN, adicionar o domínio aqui.
+    // Em desenvolvimento (ou qualquer host com disco persistente), as imagens
+    // são servidas pela própria aplicação via /api/media — não precisa de
+    // remotePatterns. Na Vercel, o driver de storage muda automaticamente
+    // para o Vercel Blob (filesystem das functions é efêmero), cujo domínio
+    // público é liberado abaixo.
     minimumCacheTTL: 60 * 60 * 24,
+    remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com" }],
   },
   async headers() {
     return [

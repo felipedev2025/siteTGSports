@@ -52,7 +52,7 @@ export async function deleteBannerAction(id: string) {
   const banner = await prisma.banner.findUnique({ where: { id } });
   if (!banner) return;
   await prisma.banner.delete({ where: { id } });
-  await storage.delete(banner.imageUrl.replace("/api/media/", ""));
+  await storage.delete(banner.imageUrl);
   await recordAudit({ userId: user.id, action: "DELETE", entityType: "Banner", entityId: id });
   revalidatePath("/admin/banners");
   revalidatePath("/");

@@ -279,8 +279,8 @@ export async function deleteProductImageAction(imageId: string) {
   if (!image) return;
 
   await prisma.productImage.delete({ where: { id: imageId } });
-  await storage.delete(image.url.replace("/api/media/", ""));
-  if (image.thumbUrl) await storage.delete(image.thumbUrl.replace("/api/media/", ""));
+  await storage.delete(image.url);
+  if (image.thumbUrl) await storage.delete(image.thumbUrl);
 
   if (image.isMain) {
     const next = await prisma.productImage.findFirst({ where: { productId: image.productId }, orderBy: { position: "asc" } });
