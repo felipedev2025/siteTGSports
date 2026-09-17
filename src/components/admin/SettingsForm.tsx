@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { updateSettingsAction } from "@/app/admin/configuracoes/actions";
 import type { Settings } from "@prisma/client";
 
@@ -11,6 +11,14 @@ const labelClass = "mb-1 block text-xs font-semibold text-navy-800";
 export function SettingsForm({ settings }: { settings: Settings }) {
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoPreview(URL.createObjectURL(file));
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,20 +36,42 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         <div className="sm:col-span-2">
           <label className={labelClass}>Logo da loja</label>
           <div className="flex items-center gap-4">
-            {settings.logoUrl ? (
-              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-tggray-200 bg-tggray-50">
-                <Image src={settings.logoUrl} alt="Logo atual" fill className="object-contain" />
-              </div>
-            ) : (
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-tggray-200 text-[10px] text-tggray-400">
-                sem logo
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-dashed border-tggray-200 bg-tggray-50 transition hover:border-blue-400 hover:bg-blue-50"
+            >
+              {logoPreview || settings.logoUrl ? (
+                <Image src={logoPreview ?? settings.logoUrl!} alt="Logo" fill className="object-contain" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center text-[10px] text-tggray-400 group-hover:text-blue-500">
+                  sem logo
+                </span>
+              )}
+              <span className="absolute inset-0 flex items-center justify-center bg-navy-900/0 text-[10px] font-semibold text-white opacity-0 transition group-hover:bg-navy-900/50 group-hover:opacity-100">
+                trocar
+              </span>
+            </button>
             <div className="flex-1">
-              <input type="file" name="logo" accept="image/jpeg,image/png,image/webp" className="text-xs" />
+              <input
+                ref={logoInputRef}
+                type="file"
+                name="logo"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleLogoChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                className="rounded-full border border-tggray-200 px-3 py-1.5 text-xs font-semibold text-navy-800 hover:border-blue-400 hover:text-blue-600"
+              >
+                {logoPreview ? "Escolher outra imagem" : "Escolher imagem"}
+              </button>
               <p className="mt-1 text-xs text-tggray-500">
                 PNG, JPG ou WebP, fundo transparente recomendado. Aparece no cabeçalho, rodapé e tela de login do
-                painel.
+                painel. Clique na caixa ou no botão para enviar — a imagem só é salva ao clicar em &quot;Salvar
+                configurações&quot;.
               </p>
             </div>
           </div>
