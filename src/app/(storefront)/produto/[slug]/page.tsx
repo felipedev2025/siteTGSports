@@ -11,6 +11,7 @@ import { ShippingEstimator } from "@/components/storefront/ShippingEstimator";
 import { Accordion } from "@/components/storefront/Accordion";
 import { ProductRail } from "@/components/storefront/ProductRail";
 import { FavoriteButton } from "@/components/storefront/FavoriteButton";
+import { getAppUrl } from "@/lib/env";
 
 export async function generateMetadata({ params }: PageProps<"/produto/[slug]">): Promise<Metadata> {
   const { slug } = await params;
@@ -68,7 +69,7 @@ export default async function ProductPage({ params }: PageProps<"/produto/[slug]
       price: (product.priceCents / 100).toFixed(2),
       availability:
         variantOptions.some((v) => v.available > 0) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      url: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/produto/${product.slug}`,
+      url: `${getAppUrl()}/produto/${product.slug}`,
     },
   };
 

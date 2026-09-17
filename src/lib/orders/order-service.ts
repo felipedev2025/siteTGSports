@@ -9,6 +9,7 @@ import { getOrCreateCart, clearCart } from "@/lib/cart";
 import { buildCheckoutCalculation } from "@/lib/orders/checkout-calc";
 import { COUPON_ERROR_MESSAGES } from "@/lib/coupons";
 import { notificationService } from "@/lib/notifications/notification-service";
+import { getAppUrl } from "@/lib/env";
 
 const RESERVATION_TTL_MINUTES = 60;
 
@@ -98,7 +99,7 @@ export async function createOrderFromCheckout(input: CheckoutInput, customerId: 
       externalReference: customerId ?? undefined,
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl = getAppUrl();
     const checkout = await createAsaasCheckout({
       billingTypes: [billingType],
       externalReference: order.id,
