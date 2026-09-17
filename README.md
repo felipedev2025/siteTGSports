@@ -232,18 +232,26 @@ A aplicação (Next.js 16) é compatível com a Vercel nativamente. Dois pontos 
 
 A Vercel não inclui um PostgreSQL por padrão — conecte um serviço gerenciado, por exemplo:
 
-- **Vercel Postgres** (via Marketplace, usa Neon por trás) — mais simples, já integra a env var automaticamente
-- Neon, Supabase, Railway ou RDS — funcionam normalmente, basta configurar `DATABASE_URL`
+- **Neon** (via Marketplace da Vercel) — mais simples, já integra as env vars automaticamente
+- Supabase, Railway ou RDS — funcionam normalmente, basta configurar `DATABASE_URL` (e `DIRECT_URL`, se o provedor
+  usar um pooler — ver abaixo)
 
-Depois de configurado, rode as migrations contra o banco de produção (uma vez, antes do primeiro deploy, ou como
-parte do pipeline):
+**Importante — `DIRECT_URL`:** provedores com connection pooler (Neon, Supabase, PgBouncer em geral) quebram o
+`prisma migrate deploy`, que trava aguardando um advisory lock que o pooler não sustenta (erro `P1002`). Por isso o
+`prisma/schema.prisma` declara `directUrl = env("DIRECT_URL")` — uma conexão **direta**, sem pooler, usada só pelo
+Migrate. O Prisma Client em runtime continua usando a `DATABASE_URL` (pooled) normalmente.
 
-```bash
-DATABASE_URL="<url-de-produção>" npx prisma migrate deploy
-```
+- Se você usar o **Build Command customizado** `npm run vercel-build` (recomendado — ver dica abaixo), não precisa
+  configurar `DIRECT_URL` manualmente: o script resolve automaticamente a partir de qualquer variável de conexão
+  direta que a integração do banco tiver criado (ex.: a variante "unpooled"/"non-pooling").
+- Se for rodar `prisma migrate deploy` manualmente, defina as duas:
+  ```bash
+  DATABASE_URL="<url-pooled-de-produção>" DIRECT_URL="<url-direta-de-produção>" npx prisma migrate deploy
+  ```
 
-> Dica: em **Project Settings > Build & Development Settings**, você pode sobrescrever o *Build Command* para
-> `npx prisma migrate deploy && next build`, aplicando as migrations pendentes a cada deploy automaticamente.
+> Dica: em **Project Settings > Build & Development Settings**, sobrescreva o *Build Command* para
+> `npm run vercel-build` — esse script já resolve `DATABASE_URL`/`DIRECT_URL` (mesmo que a integração do banco tenha
+> criado as variáveis com nomes diferentes) e aplica as migrations pendentes a cada deploy automaticamente.
 
 ### 7.2 Armazenamento de imagens (importante)
 
@@ -332,7 +340,9 @@ Os testes usam um banco PostgreSQL de teste separado (padrão `tgsports_test`, c
 `DATABASE_URL_TEST`). Antes de rodar pela primeira vez:
 
 ```bash
-DATABASE_URL="postgresql://usuario:senha@localhost:5432/tgsports_test" npx prisma migrate deploy
+DATABASE_URL="postgresql://usuario:senha@localhost:5432/tgsports_test" \
+DIRECT_URL="postgresql://usuario:senha@localhost:5432/tgsports_test" \
+npx prisma migrate deploy
 ```
 
 Cobertura atual: cálculo de carrinho/subtotal, desconto de cupom (todas as regras de validação), desconto PIX e
