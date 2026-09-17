@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth/session";
 import { recordAudit } from "@/lib/audit";
+import { storage, ALLOWED_IMAGE_MIME_TYPES, MAX_UPLOAD_SIZE_BYTES } from "@/lib/storage/storage";
 
 export interface ActionState {
   success: boolean;
@@ -16,8 +17,23 @@ export async function updateSettingsAction(formData: FormData): Promise<ActionSt
   const fixedShipping = Number(formData.get("fixedShipping") ?? 0);
   const freeShippingAbove = formData.get("freeShippingAbove") ? Number(formData.get("freeShippingAbove")) : null;
 
+  let logoUrl: string | undefined;
+  const logo = formData.get("logo");
+  if (logo instanceof File && logo.size > 0) {
+    if (!ALLOWED_IMAGE_MIME_TYPES.includes(logo.type)) {
+      return { success: false, message: "Formato de logo inválido. Use JPG, PNG ou WebP." };
+    }
+    if (logo.size > MAX_UPLOAD_SIZE_BYTES) {
+      return { success: false, message: "Logo muito grande (máx. 8MB)." };
+    }
+    const buffer = Buffer.from(await logo.arrayBuffer());
+    const saved = await storage.saveImage(buffer, logo.name, "settings");
+    logoUrl = saved.main.url;
+  }
+
   const data = {
     storeName: String(formData.get("storeName") ?? "TG Sports"),
+    ...(logoUrl ? { logoUrl } : {}),
     storeCep: String(formData.get("storeCep") ?? "") || null,
     pickupEnabled: formData.get("pickupEnabled") === "on",
     pickupInstructions: String(formData.get("pickupInstructions") ?? "") || null,

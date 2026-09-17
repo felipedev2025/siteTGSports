@@ -1,16 +1,12 @@
 import Link from "next/link";
+import { Logo } from "./Logo";
 
-export function Footer() {
+export function Footer({ logoUrl }: { logoUrl?: string | null }) {
   return (
     <footer className="mt-16 border-t border-tggray-100 bg-navy-950 text-tggray-200">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-12 sm:grid-cols-2 lg:grid-cols-5 lg:px-8">
         <div className="col-span-2">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-sm font-black text-white">
-              TG
-            </span>
-            <span className="text-lg font-extrabold text-white">TG Sports</span>
-          </div>
+          <Logo logoUrl={logoUrl} textClassName="text-lg font-extrabold text-white" badgeClassName="bg-blue-600" />
           <p className="mt-3 max-w-xs text-sm text-tggray-400">
             Tênis e calçados esportivos 100% originais. Performance, tecnologia e estilo para o seu esporte.
           </p>

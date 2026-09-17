@@ -3,8 +3,9 @@ import { SearchBar } from "./SearchBar";
 import { MobileNav } from "./MobileNav";
 import { FavoritesCount } from "./FavoritesCount";
 import { NAV_LINKS } from "./nav-links";
+import { Logo } from "./Logo";
 
-export function Header({ cartCount }: { cartCount: number }) {
+export function Header({ cartCount, logoUrl }: { cartCount: number; logoUrl?: string | null }) {
   return (
     <header className="sticky top-0 z-40 border-b border-tggray-100 bg-white/95 backdrop-blur">
       <div className="bg-navy-900 text-center text-[11px] font-medium tracking-wide text-white py-1.5 px-4">
@@ -14,13 +15,8 @@ export function Header({ cartCount }: { cartCount: number }) {
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 lg:px-8">
         <MobileNav />
 
-        <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-navy-900 text-sm font-black text-white">
-            TG
-          </span>
-          <span className="hidden text-lg font-extrabold tracking-tight text-navy-900 sm:block">
-            TG <span className="text-blue-600">Sports</span>
-          </span>
+        <Link href="/" className="shrink-0">
+          <Logo logoUrl={logoUrl} textClassName="hidden text-lg font-extrabold tracking-tight text-navy-900 sm:block" />
         </Link>
 
         <div className="hidden flex-1 lg:block lg:max-w-md">

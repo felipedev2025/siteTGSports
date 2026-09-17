@@ -1,5 +1,7 @@
 import { getCurrentUser } from "@/lib/auth/session";
+import { prisma } from "@/lib/db";
 import { Sidebar } from "@/components/admin/Sidebar";
+import { Logo } from "@/components/storefront/Logo";
 import { logoutAdminAction } from "./actions";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -10,13 +12,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     return <>{children}</>;
   }
 
+  const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+
   return (
     <div className="flex min-h-screen bg-tggray-50">
       <aside className="hidden w-64 shrink-0 bg-navy-950 lg:block">
         <div className="flex items-center gap-2 border-b border-white/10 p-4">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-sm font-black text-white">
-            TG
-          </span>
+          <Logo logoUrl={settings?.logoUrl} size={36} showText={false} badgeClassName="bg-blue-600" />
           <span className="text-sm font-bold text-white">Painel TG Sports</span>
         </div>
         <Sidebar />

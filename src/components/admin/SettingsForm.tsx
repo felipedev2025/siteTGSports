@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useTransition } from "react";
 import { updateSettingsAction } from "@/app/admin/configuracoes/actions";
 import type { Settings } from "@prisma/client";
@@ -24,6 +25,27 @@ export function SettingsForm({ settings }: { settings: Settings }) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       <section className="grid grid-cols-1 gap-4 rounded-2xl border border-tggray-200 bg-white p-5 sm:grid-cols-2">
         <h2 className="sm:col-span-2 text-sm font-bold text-navy-900">Loja</h2>
+        <div className="sm:col-span-2">
+          <label className={labelClass}>Logo da loja</label>
+          <div className="flex items-center gap-4">
+            {settings.logoUrl ? (
+              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-tggray-200 bg-tggray-50">
+                <Image src={settings.logoUrl} alt="Logo atual" fill className="object-contain" />
+              </div>
+            ) : (
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-tggray-200 text-[10px] text-tggray-400">
+                sem logo
+              </div>
+            )}
+            <div className="flex-1">
+              <input type="file" name="logo" accept="image/jpeg,image/png,image/webp" className="text-xs" />
+              <p className="mt-1 text-xs text-tggray-500">
+                PNG, JPG ou WebP, fundo transparente recomendado. Aparece no cabeçalho, rodapé e tela de login do
+                painel.
+              </p>
+            </div>
+          </div>
+        </div>
         <div>
           <label className={labelClass}>Nome da loja</label>
           <input name="storeName" defaultValue={settings.storeName} className={inputClass} />

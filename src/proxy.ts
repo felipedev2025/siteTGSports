@@ -24,7 +24,7 @@ async function isValidSession(token: string | undefined): Promise<boolean> {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
+  if (pathname.startsWith("/admin") && pathname !== "/admin/login" && pathname !== "/admin/setup") {
     const token = request.cookies.get(ADMIN_COOKIE)?.value;
     if (!(await isValidSession(token))) {
       const url = new URL("/admin/login", request.url);

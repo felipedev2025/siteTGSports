@@ -491,6 +491,7 @@ model Banner {
 model Settings {
   id                     Int      @id @default(1)
   storeName              String   @default("TG Sports")
+  logoUrl                String?
   storeCep               String?
   pickupEnabled          Boolean  @default(true)
   pickupInstructions     String?

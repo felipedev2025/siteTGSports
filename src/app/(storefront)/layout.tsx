@@ -10,9 +10,9 @@ export default async function StorefrontLayout({ children }: { children: React.R
 
   return (
     <>
-      <Header cartCount={cartCount} />
+      <Header cartCount={cartCount} logoUrl={settings.logoUrl} />
       <main className="flex-1">{children}</main>
-      <Footer />
+      <Footer logoUrl={settings.logoUrl} />
       <WhatsAppButton phone={settings.whatsappNumber} />
     </>
   );

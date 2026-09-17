@@ -66,11 +66,20 @@ Em produção, use `npm run db:deploy` (equivalente a `prisma migrate deploy`, n
 
 ### 2.5 Criar o primeiro administrador
 
+Duas formas — use a que for mais conveniente:
+
+**Pelo navegador (não precisa de terminal):** acesse `/admin/setup` no site publicado. Essa página só funciona
+enquanto **nenhum** administrador existir — depois do primeiro uso, ela se desabilita sozinha e passa a redirecionar
+para `/admin/login`. Ideal para quando o deploy já está no ar (ex.: Vercel) e você não tem acesso a terminal com o
+`DATABASE_URL` de produção.
+
+**Pelo terminal** (precisa de acesso ao `DATABASE_URL`):
+
 ```bash
 npm run create-admin -- --name="Seu Nome" --email=admin@tgsports.com.br --password="SenhaForte123"
 ```
 
-Acesse `/admin/login` com essas credenciais.
+Depois de qualquer uma das duas formas, acesse `/admin/login` com essas credenciais.
 
 ### 2.6 Rodar em desenvolvimento
 
@@ -297,6 +306,8 @@ O `proxy.ts` (equivalente ao antigo middleware) roda em runtime Node.js — tota
      numeração é ajustável a qualquer momento (auditado)
 6. Repita para o restante do catálogo. Depois, marque produtos como **destaque**, **oferta** ou **novo** conforme a
    estratégia comercial.
+7. **Configurações → Logo da loja** → suba a logo oficial (PNG/JPG/WebP). Ela passa a aparecer automaticamente no
+   cabeçalho, rodapé, tela de login do painel e configuração inicial — sem precisar mexer em código.
 
 Nenhuma etapa acima exige alteração de código.
 
@@ -405,8 +416,8 @@ garantia de que um pedido já pago nunca é revertido por um evento tardio).
 - [ ] **Número de WhatsApp real** (botão flutuante e checkout) — configurável em Admin > Configurações
 - [ ] **Textos jurídicos definitivos** (Política de privacidade, Termos de uso, Trocas e devoluções) — os textos
       atuais são apenas placeholders claramente identificados como não revisados juridicamente
-- [ ] **Logo oficial da TG Sports** — atualmente a marca é representada apenas em texto ("TG"); adicionar o arquivo
-      de logo real requer apenas trocar o componente de logo no `Header`/`Footer`/e-mails
+- [ ] **Logo oficial da TG Sports** — suba o arquivo em Admin → Configurações → Logo da loja (aparece automaticamente
+      em todo o site e no painel; enquanto não for enviada, mostra um badge "TG" de texto no lugar)
 - [ ] **CEP/endereço reais da loja** em Jaú/SP (Admin > Configurações)
 - [ ] Decisão sobre **frete real** (integração Correios/Melhor Envio) — hoje é frete fixo configurável +
       grátis acima de X, arquitetura já preparada para o gateway
