@@ -16,7 +16,11 @@ export function Header({ cartCount, logoUrl }: { cartCount: number; logoUrl?: st
         <MobileNav />
 
         <Link href="/" className="shrink-0">
-          <Logo logoUrl={logoUrl} textClassName="hidden text-lg font-extrabold tracking-tight text-navy-900 sm:block" />
+          <Logo
+            logoUrl={logoUrl}
+            size={52}
+            textClassName="hidden text-lg font-extrabold tracking-tight text-navy-900 sm:block"
+          />
         </Link>
 
         <div className="hidden flex-1 lg:block lg:max-w-md">

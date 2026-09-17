@@ -6,7 +6,12 @@ export function Footer({ logoUrl }: { logoUrl?: string | null }) {
     <footer className="mt-16 border-t border-tggray-100 bg-navy-950 text-tggray-200">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-12 sm:grid-cols-2 lg:grid-cols-5 lg:px-8">
         <div className="col-span-2">
-          <Logo logoUrl={logoUrl} textClassName="text-lg font-extrabold text-white" badgeClassName="bg-blue-600" />
+          <Logo
+            logoUrl={logoUrl}
+            size={52}
+            textClassName="text-lg font-extrabold text-white"
+            badgeClassName="bg-blue-600"
+          />
           <p className="mt-3 max-w-xs text-sm text-tggray-400">
             Tênis e calçados esportivos 100% originais. Performance, tecnologia e estilo para o seu esporte.
           </p>
