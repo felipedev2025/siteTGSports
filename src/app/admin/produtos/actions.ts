@@ -254,7 +254,16 @@ export async function uploadProductImagesAction(productId: string, formData: For
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const saved = await storage.saveImage(buffer, file.name, `products/${productId}`);
+    let saved;
+    try {
+      saved = await storage.saveImage(buffer, file.name, `products/${productId}`);
+    } catch (err) {
+      console.error("[uploadProductImagesAction] falha ao salvar imagem:", err);
+      return {
+        success: false,
+        message: "Não foi possível enviar a imagem. Verifique se o armazenamento (Vercel Blob) está configurado no projeto.",
+      };
+    }
 
     await prisma.productImage.create({
       data: {

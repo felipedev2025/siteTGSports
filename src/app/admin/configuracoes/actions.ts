@@ -27,8 +27,16 @@ export async function updateSettingsAction(formData: FormData): Promise<ActionSt
       return { success: false, message: "Logo muito grande (máx. 8MB)." };
     }
     const buffer = Buffer.from(await logo.arrayBuffer());
-    const saved = await storage.saveImage(buffer, logo.name, "settings");
-    logoUrl = saved.main.url;
+    try {
+      const saved = await storage.saveImage(buffer, logo.name, "settings");
+      logoUrl = saved.main.url;
+    } catch (err) {
+      console.error("[updateSettingsAction] falha ao salvar logo:", err);
+      return {
+        success: false,
+        message: "Não foi possível enviar a logo. Verifique se o armazenamento (Vercel Blob) está configurado no projeto.",
+      };
+    }
   }
 
   const data = {
